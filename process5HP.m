@@ -1,5 +1,7 @@
 clear; clc; close all;
-speed = 26;  % 20 or 26 meters/s
+
+speed = 20;  % 20 or 26 meters/s
+firstLocation = 'v'; % Spanwise loc. of first data point 'p', 'v', 'mp', 'mv' 
 
 rho = 1.2; % [kg/m^3] air density
 nu = 1.5e-5; % [m^2/s]
@@ -17,6 +19,7 @@ for i=1:nFiles
     fprintf('Current file is: \n %s \n', filename)
     data(1) = struct(); % Initialize a struct for data
     data.filename = filename;
+    data.z1 = firstLocation;
     [zStep,yStep,trueAirspeed,attackAng,slipAng,staticP,totalP] =...
             import5HP([pathname, filename, filetype]);
     % Offset the angles
@@ -157,10 +160,22 @@ function data = scaleData(data)
     data = getScalingFactors(data);
     % Scale the data
     data.yys = (data.yy - data.yMin)/data.yHalf;
-    if isnan(data.L) % No CVG
-        data.zzs = data.zz/max(max(data.zz));
-    else % Yes CVG, divide by width
-        data.zzs = data.zz/data.W;
+    minZ = min(min(data.zz));
+    maxZ = max(max(data.zz));
+    if isnan(data.W) % No CVG
+        data.zzs = (data.zz - minZ)/(maxZ - minZ);
+    else % Yes CVG, divide by width, align peaks to 0
+        switch data.z1
+            case 'p' % Peak
+                zOff = 0;
+            case 'v' % Valley
+                zOff = 0.5;
+            case 'mp' % Mid then peak
+                zOff= -0.25;
+            case 'mv' % Mid then valley
+                zOff = 0.25;
+        end
+        data.zzs = (data.zz - data.zz(1) + zOff)/data.W;
     end
     data.uus = data.uu/data.uInf;
     data.vvs = data.vv/data.uInf;
@@ -199,25 +214,25 @@ function data = getScalingFactors(data)
     
     data.yHalf = mean([(yMin-yHalfB) (yHalfT-yMin)]); % Mean half recovery
     % Plot the mean profile
-    figure('Name', 'Mean Profile')
-    plot( uMean, y)
-    xlabel('Mean u profile [m/s]')
-    ylabel('y [in]')
-    hold on
-    x1 = min(xlim);
-    fill([x1; uMean; x1], [y(1); y; y(end)], 'r', 'FaceAlpha', 0.1,...
-      'LineStyle', 'none')
+%     figure('Name', 'Mean Profile')
+%     plot( uMean, y)
+%     xlabel('Mean u profile [m/s]')
+%     ylabel('y [in]')
+%     hold on
+%     x1 = min(xlim);
+%     fill([x1; uMean; x1], [y(1); y; y(end)], 'r', 'FaceAlpha', 0.1,...
+%       'LineStyle', 'none')
 
-
-    yL= ylim;
-    y1 = yL(1); % Lower ylim
-    y2 = yL(2); % Upper ylim
-    plot([uInfB uInfB], [y1 yMin], 'k', 'LineWidth', 1) % Bottom uInf
-    plot([uInfT uInfT], [y2 yMin], 'k', 'LineWidth', 1) % Top uInf
-    plot([data.uInf data.uInf], [y1 y2], '--k', 'LineWidth', 1.2) % uInf
-    plot(xlim, [yMin yMin], '--k') % Horizontal at uMin
-    plot([uMin uMin], ylim, '-.k')
-    plot([uMidB, uMidT], [yHalfB, yHalfT], '*r')
+% 
+%     yL= ylim;
+%     y1 = yL(1); % Lower ylim
+%     y2 = yL(2); % Upper ylim
+%     plot([uInfB uInfB], [y1 yMin], 'k', 'LineWidth', 1) % Bottom uInf
+%     plot([uInfT uInfT], [y2 yMin], 'k', 'LineWidth', 1) % Top uInf
+%     plot([data.uInf data.uInf], [y1 y2], '--k', 'LineWidth', 1.2) % uInf
+%     plot(xlim, [yMin yMin], '--k') % Horizontal at uMin
+%     plot([uMin uMin], ylim, '-.k')
+%     plot([uMidB, uMidT], [yHalfB, yHalfT], '*r')
     
     
 end
@@ -233,26 +248,79 @@ function data = getVorticity(data)
 end
 
 function quickPlots(data)
-    figure('Name', 'Contour', 'units', 'normalized',...
-        'outerposition', [0 .6 .4 .4])
-    contourf(data.zz, data.yy, data.uu)
-    hold on 
-    quiver(data.zz, data.yy, data.ww, data.vv)
+%     figure('Name', 'Contour', 'units', 'normalized',...
+%         'outerposition', [0 .6 .4 .4])
+%     contourf(data.zz, data.yy, data.uu)
+%     hold on 
+%     quiver(data.zz, data.yy, data.ww, data.vv)
+
+    figure('Name', 'Scaled Contour', 'units', 'normalized',...
+        'outerposition', [.4 .6 .4 .4])
+    contourf(data.zzs, data.yys, data.uus)
+    set(gcf, 'Units', 'Inches', 'Position', [0, 0, 6, 4])
+    ylim([-3 3])
+    xlabel('Scaled z')
+    ylabel('Scaled y (half deficit)')
+    c = colorbar
+    c.Label.String = 'Normalized Velocity u';
+    
     
     figure('Name', 'Scaled Contour', 'units', 'normalized',...
         'outerposition', [.4 .6 .4 .4])
     contourf(data.zzs, data.yys, data.uus)
+    set(gcf, 'Units', 'Inches', 'Position', [0, 0, 6, 4])
+    ylim([-3 3])
+    xlabel('Scaled z')
+    ylabel('Scaled y (half deficit)')
+    c = colorbar
+    c.Label.String = 'Normalized Velocity u';
     hold on 
-    quiver(data.zzs, data.yys, data.wws, data.vvs)  
+    quiver(data.zzs, data.yys, data.wws, data.vvs,  ...
+    'color', [0 0 0], 'AutoScale','on', 'AutoScaleFactor', 0.9) 
+       
+    figure('Name', 'Scaled Contour', 'units', 'normalized',...
+        'outerposition', [.4 .6 .4 .4])
+    contourf(data.zzs, data.yys, data.vvs)
+    set(gcf, 'Units', 'Inches', 'Position', [0, 0, 6, 4])
+    ylim([-3 3])
+    xlabel('Scaled z')
+    ylabel('Scaled y (half deficit)')
+    c = colorbar
+    c.Label.String = 'Velocity v [m/s]';
+    
+    figure('Name', 'Scaled Contour', 'units', 'normalized',...
+        'outerposition', [.4 .6 .4 .4])
+    contourf(data.zzs, data.yys, data.wws)
+    set(gcf, 'Units', 'Inches', 'Position', [0, 0, 6, 4])
+    ylim([-3 3])
+    xlabel('Scaled z')
+    ylabel('Scaled y (half deficit)')
+    c = colorbar
+    c.Label.String = 'Velocity w [m/s]';
+
+    
     
     figure('Name', 'Vorticity', 'units', 'normalized',...
-        'outerposition', [.4 .2 .4 .4])
+    'outerposition', [.4 .2 .4 .4])
     contourf(data.zzs, data.yys, data.omegaX) 
+    set(gcf, 'Units', 'Inches', 'Position', [0, 0, 6, 4])
+    xlabel('Scaled z')
+    ylabel('Scaled y (half deficit)')
+    c = colorbar
+    caxis([-32 40])
+    c.Label.String = 'Vorticity [1/s]';
+   
     
-    figure('Name', 'Vector Field', 'units', 'normalized',...
-        'outerposition', [0 .2 .4 .4])
+%     figure('Name', 'Vector Field', 'units', 'normalized',...
+%         'outerposition', [0 .2 .4 .4])
+% 
+%     quiver(data.zzs, data.yys, 5*data.wws, 5*data.vvs,...
+%         'AutoScale','on', 'AutoScaleFactor', 0.3)
+%     %quiver(data.zzs, data.yys, data.wws, data.vvs)
+%     set(gcf, 'Units', 'Inches', 'Position', [0, 0, 6, 4])
+%     xlabel('Scaled x')
+%     ylabel('Scaled y (half deficit)')
 
-    quiver(data.zz, data.yy, data.ww, data.vv)
 end
 
 function [attackOff, slipOff ]= meanOffset(speed)
