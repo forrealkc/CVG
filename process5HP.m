@@ -254,6 +254,10 @@ function data = getVorticity(data)
     data.omegaX = dwdy - dvdz;
     
     data.maxOmega = max(max(data.omegaX));
+    
+    % Find the mean vorticity of the 98% wake region
+    idx = data.uus <= 0.98;
+    data.meanOmega = mean(abs(data.omegaX(idx)));
 end
 
 function data = getDrag(data, chord)
@@ -272,7 +276,6 @@ function data = getDrag(data, chord)
        cdUncert(i) = (2/chord) * trapz(y, intUncert);
     end
     data.cd = cd;
-    data.avgcd = mean(data.cd);
     data.cdUncert = cdUncert;
 end
 
