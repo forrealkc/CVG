@@ -59,7 +59,11 @@ for i=1:nFiles
     quickPlots(data)
     
     data.filename = filename;
-    save(['.\Wake Data\' filename '.mat'], '-struct', 'data')
+    outputDir = fullfile( fileparts(mfilename('fullpath')), "Wake Data");
+    if ~isfolder(outputDir)
+        mkdir(outputDir)
+    end
+    save(fullfile(outputDir, strcat(filename, ".mat")), '-struct', 'data')
 end
 
 function data = griddify(data)
