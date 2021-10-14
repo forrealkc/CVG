@@ -252,8 +252,11 @@ function data = getVorticity(data)
     [dwdz, dwdy] = gradient(data.ww, dz, dy);
     [dvdz, dvdy] = gradient(data.vv, dz, dy); 
     data.omegaX = dwdy - dvdz;
-    
-    data.maxOmega = max(max(data.omegaX));
+   
+    % Find the max/min/abs max
+    data.maxOmega = max(data.omegaX, [], 'all');
+    data.minOmega = min(data.omegaX, [], 'all');
+    data.maxAbsOmega = max(abs(data.omegaX), [], 'all');
     
     % Find the mean vorticity of the 98% wake region
     idx = data.uus <= 0.98;
