@@ -1,4 +1,4 @@
-clear; clc; close all;
+clear;  close all;
 
 speed = 26;  % 20 or 26 meters/s
 firstLocation = 'v'; % Spanwise loc. of first data point 'p', 'v', 'mp', 'mv' 
